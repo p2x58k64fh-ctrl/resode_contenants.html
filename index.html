@@ -824,7 +824,7 @@ function renderChantiers(){
     const bt=s==='alerte'?'⚠ À collecter':s==='vieilli'?'⏰ En retard':s==='ok'?'✓ En place':s==='cloture'?'Clôturé':'Vide';
     const tags=CONTENANTS.filter(ct=>ch[ct.key]>0).map(ct=>`<span class="tag ${ct.cls}">${ct.emoji} ${ch[ct.key]} ${ct.label}</span>`).join('');
     const noTag=!tags&&s!=='cloture'?`<span class="tag none">Aucun contenant</span>`:'';
-    const adresse=[ch.rue,[ch.cp,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const adresse=[ch.rue,[ch.codePostal,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     const mapsUrl=ch.gps?`https://www.google.com/maps?q=${ch.gps.lat},${ch.gps.lng}`:adresse?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}`:null;
     const days=daysSince(ch.lastInterventionDate);
     const daysTag=ch.lastInterventionDate&&s!=='cloture'&&s!=='vide'?`<span class="vieill-days"><i class="ti ti-clock" style="font-size:10px"></i> ${days}j</span>`:'';
@@ -892,7 +892,7 @@ function showDetail(hId){
   const h=state.interventions.find(x=>x.id===hId);if(!h)return;
   const parts=CONTENANTS.filter(ct=>h[ct.key]>0).map(ct=>`${ct.emoji} ${h[ct.key]} ${ct.label}`);
   const ch=state.chantiers.find(x=>x.id===h.chantierId);
-  const adresse=ch?[ch.rue,[ch.cp,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
+  const adresse=ch?[ch.rue,[ch.codePostal,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
   const mapsUrl=ch?.gps?`https://www.google.com/maps?q=${ch.gps.lat},${ch.gps.lng}`:adresse?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}`:null;
   const photoHtml=h.photo?`<img src="${h.photo}" class="detail-photo" alt="">`:'';
   let bsdHtml='';
@@ -1007,7 +1007,7 @@ function editChantier(chantierId){
   document.getElementById('ch-nom').value=ch.nom||'';
   document.getElementById('ch-rue').value=ch.rue||'';
   document.getElementById('ch-ville').value=ch.ville||'';
-  document.getElementById('ch-cp').value=ch.cp||'';
+  document.getElementById('ch-cp').value=ch.codePostal||'';
   document.getElementById('ch-complement').value=ch.complement||'';
   document.getElementById('ch-contact-nom').value=ch.contactNom||'';
   document.getElementById('ch-contact-tel').value=ch.contactTel||'';
@@ -1023,7 +1023,7 @@ async function saveChantier(){
   const data={
     nom,rue:document.getElementById('ch-rue').value.trim(),
     ville:document.getElementById('ch-ville').value.trim(),
-    cp:document.getElementById('ch-cp').value.trim(),
+    codePostal:document.getElementById('ch-cp').value.trim(),
     complement:document.getElementById('ch-complement').value.trim(),
     contactNom:document.getElementById('ch-contact-nom').value.trim(),
     contactTel:document.getElementById('ch-contact-tel').value.trim(),
@@ -1252,7 +1252,7 @@ function generatePDF(hId){
   const h=state.interventions.find(x=>x.id===hId);if(!h)return;
   const ch=state.chantiers.find(x=>x.id===h.chantierId);
   const parts=CONTENANTS.filter(ct=>h[ct.key]>0);
-  const adresse=ch?[ch.rue,[ch.cp,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
+  const adresse=ch?[ch.rue,[ch.codePostal,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
   const bonNum='BON-'+String(h.id).padStart(4,'0')+'-'+String(h.date||today()).replace(/-/g,'');
   const contenantsHtml=parts.length?`<div class="pdf-contenants">${parts.map(ct=>`<div class="pdf-contenant"><div class="pdf-contenant-qty">${h[ct.key]}</div><div class="pdf-contenant-lbl">${ct.emoji} ${ct.label}</div></div>`).join('')}</div>`:'<p style="font-size:12px;color:var(--gray-400)">Enlèvement définitif</p>';
   const sigHtml=h.signature?`<img src="${h.signature}" style="max-height:60px;max-width:100%">`:' ';
@@ -1311,7 +1311,7 @@ function exportCSV(){
   const rows=[headers];
   [...state.interventions].sort((a,b)=>String(b.date).localeCompare(String(a.date))).forEach(h=>{
     const ch=state.chantiers.find(x=>x.id===h.chantierId);
-    const adresse=ch?[ch.rue,[ch.cp,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
+    const adresse=ch?[ch.rue,[ch.codePostal,ch.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '):'';
     rows.push([h.date,h.clientNom,h.chantierNom,adresse,TYPE_LABELS[h.type]||h.type,...CONTENANTS.map(c=>h[c.key]||0),h.bsdType||'',h.bsdNum||'',h.bsdDechet||'',h.note||'',h.photo?'Oui':'Non',h.signature?'Oui':'Non']);
   });
   const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');
