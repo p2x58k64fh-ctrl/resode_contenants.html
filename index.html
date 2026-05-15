@@ -792,6 +792,10 @@ function renderClients(){
         </div>
       </div>
       ${tags.length?`<div class="client-stats">${tags.join('')}</div>`:''}
+      <div class="card-actions-top" style="border-top:1px solid var(--gray-100);display:grid;grid-template-columns:1fr 1fr" onclick="event.stopPropagation()">
+        <button class="chantier-btn" onclick="event.stopPropagation();openEditClient(${c.id})" style="color:var(--blue);border-right:1px solid var(--gray-100)"><i class="ti ti-pencil"></i><span>Modifier</span></button>
+        <button class="chantier-btn red" onclick="event.stopPropagation();deleteClient(${c.id})"><i class="ti ti-trash"></i><span>Supprimer</span></button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -938,6 +942,18 @@ function onAddMain(){
 }
 
 // ─── CLIENT CRUD ─────────────────────────────────────────
+function openEditClient(clientId){
+  const c=state.clients.find(x=>x.id===clientId);if(!c)return;
+  editingId=clientId;
+  document.getElementById('client-modal-title').textContent='Modifier le client';
+  document.getElementById('c-nom').value=c.nom||'';
+  document.getElementById('c-ville').value=c.ville||'';
+  document.getElementById('c-tel').value=c.tel||'';
+  document.getElementById('c-contact').value=c.contact||'';
+  document.getElementById('c-note').value=c.note||'';
+  document.getElementById('modal-client').classList.add('open');
+}
+
 function openNewClient(){
   document.getElementById('client-modal-title').textContent='Nouveau client';
   ['c-nom','c-ville','c-tel','c-contact','c-note'].forEach(id=>document.getElementById(id).value='');
