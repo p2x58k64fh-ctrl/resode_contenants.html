@@ -1052,7 +1052,7 @@ function renderHistorique(){
     const mf=f==='tous'||h.type===f;
     return mq&&mf;
   });
-  list.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  list.sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id);
   const el=document.getElementById('historique-list');
   if(!list.length){el.innerHTML='<div class="empty-state"><i class="ti ti-history"></i><p>Aucune intervention enregistrée.</p></div>';return;}
   el.innerHTML='<div class="histo-card">'+list.map(h=>{
