@@ -1681,16 +1681,20 @@ let leafletLoaded=false;
 
 function initCarte(){
   if(!leafletLoaded){
-    // Charger Leaflet CSS
     const link=document.createElement('link');
     link.rel='stylesheet';link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(link);
-    // Charger Leaflet JS
     const script=document.createElement('script');
     script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload=()=>{leafletLoaded=true;renderCarte();};
+    script.onload=async()=>{
+      leafletLoaded=true;
+      const aGéocodé=await geocoderChantiersSansGPS();
+      renderCarte();
+      if(aGéocodé)renderCarte(); // re-render si nouveaux points
+    };
     document.head.appendChild(script);
   } else {
+    geocoderChantiersSansGPS().then(ok=>{if(ok)renderCarte();});
     renderCarte();
   }
 }
@@ -1706,7 +1710,7 @@ function renderCarte(){
   if(!leafletLoaded||!window.L)return;
   const chantiersSurCarte=state.chantiers.filter(ch=>{
     if(ch.cloture)return false;
-    if(!ch.gps&&!ch.rue)return false;
+    if(!ch.gps&&!ch.gpsGeocode&&!ch.rue&&!ch.ville)return false;
     const s=getChantierStatus(ch);
     return carteStatutFiltre==='tous'||s===carteStatutFiltre;
   });
@@ -1758,10 +1762,11 @@ function renderCarte(){
 
     const icon=L.divIcon({html:iconHtml,className:'',iconSize:[40,40],iconAnchor:[20,40],popupAnchor:[0,-40]});
 
-    // Position GPS ou geocode via adresse
+    // Position GPS ou coordonnées géocodées
     let lat,lng;
     if(ch.gps){lat=parseFloat(ch.gps.lat);lng=parseFloat(ch.gps.lng);}
-    else return; // sans GPS, on skip (pas de geocoding sans API)
+    else if(ch.gpsGeocode){lat=parseFloat(ch.gpsGeocode.lat);lng=parseFloat(ch.gpsGeocode.lng);}
+    else return; // sera géocodé async
 
     bounds.push([lat,lng]);
 
@@ -1802,7 +1807,28 @@ function renderCarte(){
   setTimeout(()=>carteMap.invalidateSize(),100);
 }
 
-function allerFiche(chantierId){
+async function geocoderChantiersSansGPS(){
+  const aGéocoder=state.chantiers.filter(ch=>!ch.cloture&&!ch.gps&&!ch.gpsGeocode&&(ch.rue||ch.ville));
+  if(!aGéocoder.length)return false;
+  let modifié=false;
+  for(const ch of aGéocoder){
+    const adresse=[ch.rue,ch.codePostal,ch.ville,'France'].filter(Boolean).join(', ');
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adresse)}&limit=1`,{headers:{'Accept-Language':'fr'}});
+      const data=await r.json();
+      if(data&&data[0]){
+        ch.gpsGeocode={lat:parseFloat(data[0].lat).toFixed(6),lng:parseFloat(data[0].lon).toFixed(6)};
+        modifié=true;
+      }
+      // Respecter la limite de 1 req/s de Nominatim
+      await new Promise(res=>setTimeout(res,1100));
+    }catch(e){}
+  }
+  if(modifié){await saveToCloud();}
+  return modifié;
+}
+
+
   const ch=state.chantiers.find(x=>x.id===chantierId);if(!ch)return;
   // Fermer le popup et aller sur la fiche
   if(carteMap)carteMap.closePopup();
