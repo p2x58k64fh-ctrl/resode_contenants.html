@@ -557,21 +557,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="preview-stock-title">Nouveau stock après intervention</div>
       <div class="preview-items" id="i-preview-items"></div>
     </div>
-    <!-- BSD -->
+    <!-- BSD MULTIPLE -->
     <div class="form-section">
       <div class="form-section-title"><i class="ti ti-file-certificate" style="font-size:14px;color:var(--teal)"></i> BSD / BSDA (optionnel)</div>
-      <div class="bsd-block">
-        <div class="bsd-block-title"><i class="ti ti-clipboard-list"></i> Bordereau de suivi</div>
-        <div class="field"><div class="bsd-type-btns">
-          <button class="bsd-type-btn" id="i-bsd-btn-bsd" onclick="selectBSD('BSD')"><div class="bsd-btn-label">BSD</div><div class="bsd-btn-sub">Déchets dangereux</div></button>
-          <button class="bsd-type-btn" id="i-bsd-btn-bsda" onclick="selectBSD('BSDA')"><div class="bsd-btn-label">BSDA</div><div class="bsd-btn-sub">Amiante</div></button>
-        </div></div>
-        <div id="i-bsd-extra" style="display:none">
-          <div class="field"><label id="i-bsd-num-lbl">N° BSD</label><input id="i-bsd-num" placeholder="Ex: BSD-20250513-XXXX" style="font-family:monospace;text-transform:uppercase"></div>
-          <div class="field"><label>Nature du déchet</label><input id="i-bsd-dechet" placeholder="Ex: Huiles usagées…"></div>
-          <button class="btn-secondary" style="margin-top:0;padding:7px;font-size:12px" onclick="clearBSD()">✕ Retirer</button>
-        </div>
-      </div>
+      <div id="i-bsd-liste"></div>
+      <button onclick="ajouterBSD()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px dashed var(--teal);border-radius:var(--radius-sm);background:var(--teal-light);color:var(--teal-text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px"><i class="ti ti-plus"></i> Ajouter un BSD/BSDA</button>
     </div>
     <!-- PHOTO -->
     <div class="form-section">
@@ -704,7 +694,7 @@ let editingChantierId=null;
 let editingIntervId=null;
 let stockManuelChantierId=null;
 let currentOpType='depot';
-let intervPhoto=null,intervBSDType=null;
+let intervPhoto=null;
 let showAjoutSupp=false,showRetraitSupp=false;
 const sigState={canvas:null,ctx:null,hasSig:false};
 let rapportClientId=null;
@@ -1080,7 +1070,8 @@ function renderHistorique(){
   el.innerHTML='<div class="histo-card">'+list.map(h=>{
     const lines=buildHistoLines(h);
     const thumb=h.photo?`<img src="${h.photo}" class="histo-thumb" alt="">`:'';
-    const bsdLine=h.bsdNum?`<div class="histo-bsd"><i class="ti ti-clipboard-list" style="font-size:11px"></i> ${h.bsdType||'BSD'} — ${h.bsdNum}</div>`:'';
+    const bsds=h.bsds&&h.bsds.length?h.bsds:h.bsdNum?[{type:h.bsdType||'BSD',num:h.bsdNum}]:[];
+    const bsdLine=bsds.length?`<div class="histo-bsd"><i class="ti ti-clipboard-list" style="font-size:11px"></i> ${bsds.map(b=>`${b.type||'BSD'} ${b.num}`).join(' · ')}</div>`:'';
     const pill=`<span class="type-pill ${h.type}">${TYPE_LABELS[h.type]||h.type}</span>`;
     return `<div class="histo-item" onclick="showDetail(${h.id})">
       <div class="histo-row">
@@ -1140,7 +1131,11 @@ function showDetail(hId){
   if(retItems.length)actionHtml+=`<div class="recap-bloc orange"><div class="recap-bloc-title">Contenants retirés</div>${retItems.join('')}</div>`;
   if(stockItems.length)actionHtml+=`<div class="recap-bloc gray"><div class="recap-bloc-title">Stock final sur site</div>${stockItems.join('')}</div>`;
   else if(h.stockApres&&totalStock(h.stockApres)===0)actionHtml+=`<div style="font-size:13px;color:var(--gray-400);margin-bottom:14px">→ Chantier clôturé</div>`;
-  const bsdHtml=h.bsdNum?`<div class="detail-section"><div class="detail-section-title"><i class="ti ti-clipboard-list" style="color:var(--teal)"></i> Bordereau</div><div class="bsd-detail-block"><div class="bsd-detail-num">${h.bsdNum}</div><div class="bsd-detail-type"><i class="ti ti-certificate"></i> ${h.bsdType||'BSD'}</div>${h.bsdDechet?`<div style="font-size:12px;color:var(--teal-text);margin-top:8px">${h.bsdDechet}</div>`:''}</div></div>`:'';
+  const bsdHtml=(()=>{
+    const bsds=h.bsds&&h.bsds.length?h.bsds:h.bsdNum?[{type:h.bsdType||'BSD',num:h.bsdNum,dechet:h.bsdDechet,cap:''}]:[];
+    if(!bsds.length)return '';
+    return `<div class="detail-section"><div class="detail-section-title"><i class="ti ti-clipboard-list" style="color:var(--teal)"></i> Bordereau${bsds.length>1?'x':''}</div>${bsds.map(b=>`<div class="bsd-detail-block" style="margin-bottom:8px"><div class="bsd-detail-num">${b.num}</div><div class="bsd-detail-type"><i class="ti ti-certificate"></i> ${b.type||'BSD'}</div>${b.dechet?`<div style="font-size:12px;color:var(--teal-text);margin-top:6px">${b.dechet}</div>`:''}${b.cap?`<div style="font-size:12px;color:var(--teal-text);margin-top:4px">CAP : ${b.cap}</div>`:''}</div>`).join('')}</div>`;
+  })();
   const chHtml=ch?`<div class="detail-section"><div class="detail-section-title"><i class="ti ti-map-2" style="color:var(--purple)"></i> Chantier</div>
     <div class="detail-row"><span class="detail-lbl">Chantier</span><span class="detail-val">${ch.nom}</span></div>
     ${adresse?`<div class="detail-row"><span class="detail-lbl">Adresse</span><span class="detail-val">${adresse}</span></div>`:''}
@@ -1193,19 +1188,35 @@ async function saveEditInterv(){
 }
 
 // ─── STOCK MANUEL ────────────────────────────────────────
+function changeQtyStock(id,delta){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.value=Math.max(0,(parseInt(el.value)||0)+delta);
+}
+
 function ouvrirStockManuel(chantierId){
   stockManuelChantierId=chantierId;
   const ch=state.chantiers.find(x=>x.id===chantierId);if(!ch)return;
   document.getElementById('stock-modal-sub').textContent=ch.nom;
-  document.getElementById('stock-grid').innerHTML=buildGrid('sm',copyStock(ch));
+  document.getElementById('stock-grid').innerHTML=`<div class="contenants-grid">${CONTENANTS.map(c=>`
+    <div class="contenant-item">
+      <div class="contenant-label">${c.emoji} ${c.label}</div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQtyStock('sm-${c.key}',-1)">−</button>
+        <input class="qty-val" id="sm-${c.key}" type="number" value="${ch[c.key]||0}" min="0" style="color:var(--gray-900)!important;-webkit-text-fill-color:var(--gray-900)!important;opacity:1!important">
+        <button class="qty-btn" onclick="changeQtyStock('sm-${c.key}',1)">+</button>
+      </div>
+    </div>`).join('')}</div>`;
   document.getElementById('modal-stock').classList.add('open');
 }
 
 async function saveStockManuel(){
   const ch=state.chantiers.find(x=>x.id===stockManuelChantierId);if(!ch)return;
-  const newStock=readGrid('sm');
-  CONTENANTS.forEach(c=>{ch[c.key]=newStock[c.key];});
-  if(totalStock(newStock)>0)ch.cloture=false;
+  CONTENANTS.forEach(c=>{
+    const el=document.getElementById('sm-'+c.key);
+    if(el)ch[c.key]=Math.max(0,parseInt(el.value)||0);
+  });
+  if(CONTENANTS.reduce((t,c)=>t+(ch[c.key]||0),0)>0)ch.cloture=false;
   closeModal('modal-stock');
   renderAll();
   await saveToCloud();
@@ -1285,7 +1296,7 @@ function genererRapport(){
 
 // ─── INTERVENTION ────────────────────────────────────────
 function openIntervention(chantierId,opType){
-  currentChantierId=chantierId;intervPhoto=null;intervBSDType=null;
+  currentChantierId=chantierId;intervPhoto=null;
   showAjoutSupp=false;showRetraitSupp=false;
   const ch=state.chantiers.find(x=>x.id===chantierId);
   const client=state.clients.find(c=>c.id===ch?.clientId);
@@ -1293,7 +1304,7 @@ function openIntervention(chantierId,opType){
   document.getElementById('interv-sub').textContent=client?'Client : '+client.nom:'';
   document.getElementById('i-date').value=today();
   document.getElementById('i-note').value='';
-  clearBSD();resetPhoto();
+  resetBSDListe();resetPhoto();
   selectOpType(opType||'depot');
   document.getElementById('modal-intervention').classList.add('open');
   setTimeout(()=>initSig(),100);
@@ -1395,20 +1406,50 @@ function computeDepotRetrait(){
   return {depot,retrait};
 }
 
-// ─── BSD ─────────────────────────────────────────────────
-function selectBSD(type){
-  intervBSDType=type;
-  document.getElementById('i-bsd-btn-bsd').classList.toggle('selected',type==='BSD');
-  document.getElementById('i-bsd-btn-bsda').classList.toggle('selected',type==='BSDA');
-  document.getElementById('i-bsd-extra').style.display='block';
-  document.getElementById('i-bsd-num-lbl').textContent='N° '+(type==='BSDA'?'BSDA':'BSD');
+// ─── BSD MULTIPLE ────────────────────────────────────────
+let bsdListe=[];
+
+function ajouterBSD(){
+  const id=Date.now();
+  bsdListe.push({id,type:'BSD',num:'',dechet:'',cap:''});
+  renderBSDListe();
 }
-function clearBSD(){
-  intervBSDType=null;
-  ['i-bsd-btn-bsd','i-bsd-btn-bsda'].forEach(id=>document.getElementById(id).classList.remove('selected'));
-  document.getElementById('i-bsd-extra').style.display='none';
-  ['i-bsd-num','i-bsd-dechet'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+
+function supprimerBSD(id){
+  bsdListe=bsdListe.filter(b=>b.id!==id);
+  renderBSDListe();
 }
+
+function renderBSDListe(){
+  const el=document.getElementById('i-bsd-liste');if(!el)return;
+  if(!bsdListe.length){el.innerHTML='';return;}
+  el.innerHTML=bsdListe.map((b,idx)=>`
+    <div class="bsd-block" style="margin-bottom:10px">
+      <div class="bsd-block-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><i class="ti ti-clipboard-list"></i> Bordereau ${idx+1}</span>
+        <button onclick="supprimerBSD(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:2px 6px">✕ Retirer</button>
+      </div>
+      <div class="bsd-type-btns" style="margin-bottom:10px">
+        <button class="bsd-type-btn ${b.type==='BSD'?'selected':''}" onclick="setBSDType(${b.id},'BSD')"><div class="bsd-btn-label">BSD</div><div class="bsd-btn-sub">Déchets dangereux</div></button>
+        <button class="bsd-type-btn ${b.type==='BSDA'?'selected':''}" onclick="setBSDType(${b.id},'BSDA')"><div class="bsd-btn-label">BSDA</div><div class="bsd-btn-sub">Amiante</div></button>
+      </div>
+      <div class="field"><label>N° ${b.type}</label><input value="${b.num}" oninput="setBSDVal(${b.id},'num',this.value)" placeholder="Ex: BSD-20250513-XXXX" style="font-family:monospace;text-transform:uppercase;border-color:var(--teal-border)"></div>
+      <div class="field"><label>Nature du déchet</label><input value="${b.dechet}" oninput="setBSDVal(${b.id},'dechet',this.value)" placeholder="Ex: Huiles usagées, amiante…" style="border-color:var(--teal-border)"></div>
+      ${b.type==='BSDA'?`<div class="field"><label>CAP (Code d'Acceptation Préalable)</label><input value="${b.cap}" oninput="setBSDVal(${b.id},'cap',this.value)" placeholder="Ex: CAP-2025-XXXX" style="font-family:monospace;border-color:var(--teal-border)"></div>`:''}
+    </div>`).join('');
+}
+
+function setBSDType(id,type){
+  const b=bsdListe.find(x=>x.id===id);if(b){b.type=type;renderBSDListe();}
+}
+
+function setBSDVal(id,field,val){
+  const b=bsdListe.find(x=>x.id===id);if(b)b[field]=val.toUpperCase();
+}
+
+function resetBSDListe(){bsdListe=[];renderBSDListe();}
+
+
 
 // ─── SIGNATURE ───────────────────────────────────────────
 function initSig(){
@@ -1458,8 +1499,12 @@ async function submitIntervention(){
   const client=state.clients.find(c=>c.id===ch.clientId);
   const date=document.getElementById('i-date').value||today();
   const note=document.getElementById('i-note').value.trim();
-  const bsdNum=document.getElementById('i-bsd-num').value.trim().toUpperCase();
-  const bsdDechet=document.getElementById('i-bsd-dechet').value.trim();
+  // Récupérer la liste BSD
+  const bsds=bsdListe.filter(b=>b.num.trim()).map(b=>({type:b.type,num:b.num.trim(),dechet:b.dechet.trim(),cap:b.cap.trim()}));
+  // Compatibilité : premier BSD comme champ principal
+  const bsdNum=bsds.length?bsds[0].num:'';
+  const bsdType=bsds.length?bsds[0].type:null;
+  const bsdDechet=bsds.length?bsds[0].dechet:'';
   const signature=getSigData();
   const {depot,retrait}=computeDepotRetrait();
   if(currentOpType==='depot'&&totalStock(depot)===0){showToast('Indiquer au moins 1 contenant déposé');return;}
@@ -1468,12 +1513,12 @@ async function submitIntervention(){
   CONTENANTS.forEach(c=>{stockApres[c.key]=Math.max(0,(ch[c.key]||0)+(depot[c.key]||0)-(retrait[c.key]||0));});
   CONTENANTS.forEach(c=>{ch[c.key]=stockApres[c.key];});
   ch.lastInterventionDate=date;
-  if(bsdNum){ch.lastBsdNum=bsdNum;ch.lastBsdType=intervBSDType||'BSD';}
+  if(bsdNum){ch.lastBsdNum=bsdNum;ch.lastBsdType=bsdType||'BSD';}
   if(currentOpType==='enlevement'&&totalStock(stockApres)===0){ch.cloture=true;ch.alerte=false;ch.prochaineCollecte=null;}
   else ch.cloture=false;
   // Effacer la date planifiée si elle est passée
   if(ch.prochaineCollecte&&ch.prochaineCollecte<=date)ch.prochaineCollecte=null;
-  const entry={id:state.nextIntervId++,chantierId:currentChantierId,clientId:ch.clientId,clientNom:client?client.nom:'?',chantierNom:ch.nom,type:currentOpType,date,note,bsdNum,bsdType:intervBSDType||null,bsdDechet,stockAvant,depot,retrait,stockApres};
+  const entry={id:state.nextIntervId++,chantierId:currentChantierId,clientId:ch.clientId,clientNom:client?client.nom:'?',chantierNom:ch.nom,type:currentOpType,date,note,bsdNum,bsdType,bsdDechet,bsds,stockAvant,depot,retrait,stockApres};
   if(intervPhoto)entry.photo=intervPhoto;
   if(signature)entry.signature=signature;
   state.interventions.push(entry);
@@ -1532,10 +1577,7 @@ function generatePDF(hId){
       ${ch?.contactTel?`<div class="pdf-row"><span class="pdf-lbl">Tél. contact</span><span class="pdf-val">${ch.contactTel}</span></div>`:''}
     </div>
     <div class="pdf-section"><div class="pdf-section-title">Contenants</div>${contenantsHtml}</div>
-    ${h.bsdNum?`<div class="pdf-section"><div class="pdf-section-title">Bordereau</div>
-      <div class="pdf-row"><span class="pdf-lbl">Type</span><span class="pdf-val">${h.bsdType||'BSD'}</span></div>
-      <div class="pdf-row"><span class="pdf-lbl">Numéro</span><span class="pdf-val" style="font-family:monospace;font-weight:700">${h.bsdNum}</span></div>
-      ${h.bsdDechet?`<div class="pdf-row"><span class="pdf-lbl">Déchet</span><span class="pdf-val">${h.bsdDechet}</span></div>`:''}</div>`:''}
+    ${(()=>{const bsds=h.bsds&&h.bsds.length?h.bsds:h.bsdNum?[{type:h.bsdType||'BSD',num:h.bsdNum,dechet:h.bsdDechet||'',cap:''}]:[];return bsds.length?`<div class="pdf-section"><div class="pdf-section-title">Bordereau${bsds.length>1?'x':''}</div>${bsds.map(b=>`<div style="margin-bottom:8px;padding:6px;background:var(--teal-light);border-radius:4px"><div class="pdf-row"><span class="pdf-lbl">Type</span><span class="pdf-val">${b.type||'BSD'}</span></div><div class="pdf-row"><span class="pdf-lbl">Numéro</span><span class="pdf-val" style="font-family:monospace;font-weight:700">${b.num}</span></div>${b.dechet?`<div class="pdf-row"><span class="pdf-lbl">Déchet</span><span class="pdf-val">${b.dechet}</span></div>`:''}${b.cap?`<div class="pdf-row"><span class="pdf-lbl">CAP</span><span class="pdf-val" style="font-family:monospace">${b.cap}</span></div>`:''}</div>`).join('')}</div>`:'';})()} 
     ${h.note?`<div class="pdf-section"><div class="pdf-section-title">Observations</div><p style="font-size:12px">${h.note}</p></div>`:''}
     ${photoHtml}
     <div class="pdf-section"><div class="pdf-section-title">Signature du responsable site</div>
